@@ -114,6 +114,19 @@ def read_image(path):
     return img
 
 
+def read_image_from_camera(camera):
+    ret, img = camera.read()
+    if not ret:
+        print("Failed to grab frame")
+        return None
+
+    if img.ndim == 2:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB) / 255.0
+    return img
+
+
 def resize_image(img):
     """Resize image and make it fit for network.
 
@@ -188,3 +201,22 @@ def write_depth(path, depth, bits=1):
         cv2.imwrite(path + ".png", out.astype("uint16"))
 
     return
+
+
+def depth_to_screen(path, depth, bits=1):
+#     write_pfm(path + ".pfm", depth.astype(np.float32))
+
+    depth_min = depth.min()
+    depth_max = depth.max()
+
+    max_val = (2**(8*bits))-1
+
+    if depth_max - depth_min > np.finfo("float").eps:
+        out = max_val * (depth - depth_min) / (depth_max - depth_min)
+    else:
+        out = np.zeros(depth.shape, dtype=depth.type)
+
+    if bits == 1:
+        cv2.imshow("test", out.astype("uint8"))
+    elif bits == 2:
+        cv2.imshow("test", out.astype("uint16"))

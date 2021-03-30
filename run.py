@@ -1,6 +1,7 @@
 """Compute depth maps for images in the input folder.
 """
 import os
+import time
 import glob
 import torch
 import utils
@@ -70,20 +71,22 @@ def run(input_path, output_path, model_path, model_type="large", optimize=True):
 
     # get input
     img_names = glob.glob(os.path.join(input_path, "*"))
-    num_images = len(img_names)
 
     # create output folder
     os.makedirs(output_path, exist_ok=True)
 
     print("start processing")
 
-    for ind, img_name in enumerate(img_names):
+    cam = cv2.VideoCapture(0)
+    if not cam.set(cv2.CAP_PROP_BUFFERSIZE, 1):
+        print("Cannot setup camera buffersize")
 
-        print("  processing {} ({}/{})".format(img_name, ind + 1, num_images))
+    i = 0
+    while True:
+        start_time = time.time()
 
         # input
-
-        img = utils.read_image(img_name)
+        img = utils.read_image_from_camera(cam)
         img_input = transform({"image": img})["image"]
 
         # compute
@@ -106,11 +109,21 @@ def run(input_path, output_path, model_path, model_type="large", optimize=True):
             )
 
         # output
+        i += 1
         filename = os.path.join(
-            output_path, os.path.splitext(os.path.basename(img_name))[0]
+            output_path, os.path.splitext(os.path.basename(str(i)))[0]
         )
-        utils.write_depth(filename, prediction, bits=2)
+        utils.depth_to_screen(filename, prediction, bits=2)
 
+        k = cv2.waitKey(1)
+        if k % 256 == 27:
+            # ESC pressed
+            print("Escape hit, closing...")
+            break
+
+        print("Image processing time = {}".format(time.time() - start_time))
+
+    cam.release()
     print("finished")
 
 
